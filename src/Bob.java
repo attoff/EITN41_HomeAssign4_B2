@@ -4,12 +4,16 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.net.Socket;
+import java.security.MessageDigest;
+import java.util.Formatter;
 import java.util.Random;
 
 public class Bob {
     private String serverName;
     private int port;
     private BigInteger key;
+    private String secret;
+    private String passphrase;
 
     private BigInteger p;
     private BigInteger x2;
@@ -26,6 +30,7 @@ public class Bob {
     private BigInteger R_ab;
     private Random rand;
 
+
     private Socket client;
     private PrintWriter out;
     private BufferedReader in;
@@ -39,12 +44,14 @@ public class Bob {
                 "e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7ed" +
                 "ee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3d" +
                 "c2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f" +
-                "83655f23fca3ad91c62f356208552bb9ed529077096966d" +
+                "83655d23dca3ad961c62f356208552bb9ed529077096966d" +
                 "670c354e4abc9804f1746c08ca237327ffffffffffffffff", 16);
 
         g_1 = new BigInteger("2");
+        passphrase = "eitn41 <3";
         rand = new Random();
     }
+
 
     public void setupConnection() {
         try {
@@ -59,26 +66,23 @@ public class Bob {
 
     public BigInteger negotiateKey() {
 
-
         String g_x1_str = null;
         try {
             //retrieve g_x1
             g_x1_str = in.readLine();
 
-            System.out.println("g^x_1 from server: " + g_x1_str);
             //convert it into a number.
             BigInteger g_x1 = new BigInteger(g_x1_str, 16);
 
             // generate g**x2, x2 shall be a random number
-            x2 = p.multiply(BigInteger.valueOf(rand.nextInt(10) + 1));
+            x2 = pickRandomExponent(g_1);
             // calculate g**x2 mod p
             BigInteger g_x2 = g_1.modPow(x2, p);
             // convert to hex-string and send.
-            System.out.println("g^x_2 to server: " + g_x2.toString(16));
             out.println(g_x2.toString(16));
+
             // read the ack/nak.
             String ack = in.readLine();
-
             if (ack.compareTo("ack") == 0) {
                 key = g_x1.modPow(x2, p);
             }
@@ -86,8 +90,6 @@ public class Bob {
             System.out.println("Error with retrieving correct response from server. Please try again.");
             e.printStackTrace();
         }
-
-        System.out.println("g^xy or 'shared key' is: " + key);
         return key;
     }
 
@@ -98,7 +100,8 @@ public class Bob {
             BigInteger g_2a = new BigInteger(g_2a_str, 16);
 
             //create random number b_2 and create g_2b
-            BigInteger b_2 = p.multiply(BigInteger.valueOf(rand.nextInt(10) + 1));
+            BigInteger b_2 = pickRandomExponent(g_1);
+            //BigInteger b_2 = p.multiply(BigInteger.valueOf(2));
             BigInteger g_2b = g_1.modPow(b_2, p);
 
             //send g_2b to Alice.
@@ -111,7 +114,6 @@ public class Bob {
             } else {
                 g_2 = g_2a.modPow(b_2, p);
                 System.out.println("Second generator created.");
-                System.out.println(g_2.toString(16));
             }
 
             //retrieve g_3a and convert to number
@@ -119,7 +121,8 @@ public class Bob {
             BigInteger g_3a = new BigInteger(g_3a_str, 16);
 
             //create g_3b and send to Alice
-            b_3 = p.multiply(BigInteger.valueOf(rand.nextInt(10) + 1));
+            b_3 = pickRandomExponent(g_1);
+            //b_3 = p.multiply(BigInteger.valueOf(2));
             BigInteger g_3b = g_1.modPow(b_3, p);
             out.println(g_3b.toString(16));
 
@@ -130,7 +133,6 @@ public class Bob {
             } else {
                 g_3 = g_3a.modPow(b_3, p);
                 System.out.println("Third generator created.");
-                System.out.println(g_3.toString(16));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -143,8 +145,16 @@ public class Bob {
             String P_a_str = in.readLine();
             P_a = new BigInteger(P_a_str, 16);
 
+
+            byte[] message = (key.toString(16).concat(passphrase)).getBytes();
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            md.reset();
+            md.update(message);
+            secret = byteToHex(md.digest());
+            System.out.println("SECRET " + secret);
+
             //create P_b and send.
-            BigInteger r = p.multiply(BigInteger.valueOf(rand.nextInt(10) + 1));
+            BigInteger r = pickRandomExponent(g_3);
             P_b = g_3.modPow(r, p);
             out.println(P_b.toString(16));
 
@@ -162,7 +172,12 @@ public class Bob {
             System.out.println("Q_a is received from server.");
 
             //KANSKE PROBLEM
-            Q_b = (g_1.modPow(r, p).multiply(g_2.modPow(x2, p)));
+            Q_b = ((g_1.modPow(r, p)).multiply(g_2.modPow(new BigInteger(secret, 16), p))).mod(p);
+
+            if (Q_b.compareTo(p) > 0) {
+                System.out.println("Q_b är större än p!!!!!");
+            }
+
             out.println(Q_b.toString(16));
 
             response = in.readLine();
@@ -184,7 +199,14 @@ public class Bob {
             String R_a_str = in.readLine();
             R_a = new BigInteger(R_a_str, 16);
             System.out.println("R_a reveived from server");
-            System.out.println(R_a.toString(16));
+
+            BigInteger inverse = Q_b.modInverse(p);
+
+            if (Q_b.multiply(inverse).mod(p).compareTo(BigInteger.ONE) != 0) {
+                System.out.println(Q_b.multiply(inverse).mod(p));
+                System.out.println("FEEEEEEL INVERS!");
+            }
+
 
             //KANSKE PROBLEM
             R_b = (Q_a.multiply(Q_b.modInverse(p))).modPow(b_3, p);
@@ -200,9 +222,9 @@ public class Bob {
             }
 
             R_ab = R_a.modPow(b_3, p);
-            System.out.println(R_ab.toString(16));
-            System.out.println((P_a.multiply(P_b.modInverse(p))).mod(p).toString(16));
 
+            System.out.println(R_ab.toString(16));
+            System.out.println(P_a.multiply(P_b.modInverse(p)).mod(p).toString(16));
             String authentication = in.readLine();
             System.out.println("Authentication " + authentication);
 
@@ -212,6 +234,28 @@ public class Bob {
             e.printStackTrace();
         }
 
+    }
+
+    private static String byteToHex(final byte[] hash) {
+        Formatter formatter = new Formatter();
+        for (byte b : hash) {
+            formatter.format("%02x", b);
+        }
+        String result = formatter.toString();
+        formatter.close();
+        return result;
+    }
+
+
+    private BigInteger pickRandomExponent(BigInteger g) {
+        BigInteger bi;
+        bi = BigInteger.valueOf(2);
+        while (g.pow(bi.intValue()).gcd(p).compareTo(BigInteger.ONE) != 0) {
+            bi = bi.add(BigInteger.ONE);
+            System.out.println("new");
+        }
+
+        return bi;
     }
 
 }

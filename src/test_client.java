@@ -40,5 +40,48 @@ class Client {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        BigInteger kak = new BigInteger("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd1" +
+                "29024e088a67cc74020bbea63b139b22514a08798e3404dd" +
+                "ef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245" +
+                "e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7ed" +
+                "ee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3d" +
+                "c2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f" +
+                "83655f23fca3ad91c62f356208552bb9ed529077096966d" +
+                "670c354e4abc9804f1746c08ca237327ffffffffffffffff", 16);
+        Random rand = new Random();
+        for (int i = 0; i < 1000; i++) {
+            int k = rand.nextInt();
+            BigInteger b = BigInteger.valueOf(k);
+            BigInteger inverse = b.modInverse(kak);
+
+            if (b.multiply(inverse).mod(kak).compareTo(BigInteger.valueOf(1)) != 0) {
+                System.out.println("Denna: " + b);
+                System.out.println("fick inversen " + inverse);
+                System.out.println("FEEEEL!");
+
+            } else {
+
+                System.out.println("rätt");
+            }
+        }
+
+    }
+
+    private BigInteger inverseMod(BigInteger a, BigInteger b) {
+        BigInteger d;
+        if (b == BigInteger.ZERO) {
+            d = a;
+            return d;
+        }
+        BigInteger x1 = new BigInteger("0");
+        BigInteger x2 = new BigInteger("1");
+        BigInteger y1 = new BigInteger("1");
+        BigInteger y2 = new BigInteger("0");
+
+        while (b.compareTo(BigInteger.ZERO) > 0) {
+
+        }
+        return BigInteger.ZERO;
     }
 }
