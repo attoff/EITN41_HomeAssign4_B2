@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.math.BigInteger;
 import java.net.Socket;
 import java.security.MessageDigest;
@@ -101,7 +98,6 @@ public class Bob {
 
             //create random number b_2 and create g_2b
             BigInteger b_2 = pickRandomExponent(g_1);
-            //BigInteger b_2 = p.multiply(BigInteger.valueOf(2));
             BigInteger g_2b = g_1.modPow(b_2, p);
 
             //send g_2b to Alice.
@@ -122,7 +118,6 @@ public class Bob {
 
             //create g_3b and send to Alice
             b_3 = pickRandomExponent(g_1);
-            //b_3 = p.multiply(BigInteger.valueOf(2));
             BigInteger g_3b = g_1.modPow(b_3, p);
             out.println(g_3b.toString(16));
 
@@ -145,14 +140,6 @@ public class Bob {
             String P_a_str = in.readLine();
             P_a = new BigInteger(P_a_str, 16);
 
-
-            byte[] message = (key.toString(16).concat(passphrase)).getBytes();
-            MessageDigest md = MessageDigest.getInstance("SHA-1");
-            md.reset();
-            md.update(message);
-            secret = byteToHex(md.digest());
-            System.out.println("SECRET " + secret);
-
             //create P_b and send.
             BigInteger r = pickRandomExponent(g_3);
             P_b = g_3.modPow(r, p);
@@ -166,17 +153,13 @@ public class Bob {
                 System.out.println("P_b was ack'ed by the server");
             }
 
-            //retrieve Q_a
             String Q_a_str = in.readLine();
             Q_a = new BigInteger(Q_a_str, 16);
             System.out.println("Q_a is received from server.");
 
-            //KANSKE PROBLEM
-            Q_b = ((g_1.modPow(r, p)).multiply(g_2.modPow(new BigInteger(secret, 16), p))).mod(p);
+            BigInteger y = createAndHashY(key, passphrase);
+            Q_b = (g_1.modPow(r, p).multiply(g_2.modPow(y, p))).mod(p);
 
-            if (Q_b.compareTo(p) > 0) {
-                System.out.println("Q_b är större än p!!!!!");
-            }
 
             out.println(Q_b.toString(16));
 
@@ -193,6 +176,7 @@ public class Bob {
         }
     }
 
+
     public void startComputingR() {
 
         try {
@@ -201,17 +185,8 @@ public class Bob {
             System.out.println("R_a reveived from server");
 
             BigInteger inverse = Q_b.modInverse(p);
-
-            if (Q_b.multiply(inverse).mod(p).compareTo(BigInteger.ONE) != 0) {
-                System.out.println(Q_b.multiply(inverse).mod(p));
-                System.out.println("FEEEEEEL INVERS!");
-            }
-
-
-            //KANSKE PROBLEM
-            R_b = (Q_a.multiply(Q_b.modInverse(p))).modPow(b_3, p);
+            R_b = Q_a.multiply(inverse).modPow(b_3, p);
             out.println(R_b.toString(16));
-            System.out.println(R_b.toString(16));
 
             String response = in.readLine();
             if (response.compareTo("ack") != 0) {
@@ -222,40 +197,71 @@ public class Bob {
             }
 
             R_ab = R_a.modPow(b_3, p);
-
-            System.out.println(R_ab.toString(16));
-            System.out.println(P_a.multiply(P_b.modInverse(p)).mod(p).toString(16));
             String authentication = in.readLine();
             System.out.println("Authentication " + authentication);
 
 
-            client.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
 
-    private static String byteToHex(final byte[] hash) {
-        Formatter formatter = new Formatter();
-        for (byte b : hash) {
-            formatter.format("%02x", b);
+    public void sendMessage(String message) {
+        BigInteger encryptedMessage = new BigInteger(message, 16).xor(key);
+        out.println(encryptedMessage.toString(16));
+        try {
+            System.out.println("Incomming message from Alice: " + in.readLine());
+            client.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        String result = formatter.toString();
-        formatter.close();
-        return result;
     }
-
 
     private BigInteger pickRandomExponent(BigInteger g) {
         BigInteger bi;
         bi = BigInteger.valueOf(2);
         while (g.pow(bi.intValue()).gcd(p).compareTo(BigInteger.ONE) != 0) {
             bi = bi.add(BigInteger.ONE);
-            System.out.println("new");
         }
 
         return bi;
     }
 
+    public static BigInteger createAndHashY(BigInteger key, String passphr) {
+
+        byte[] keyBytes = key.toByteArray();
+        byte[] keyCorrect;
+
+        if (keyBytes[0] == 0x00) {
+            keyCorrect = new byte[keyBytes.length - 1];
+            System.arraycopy(keyBytes, 1, keyCorrect, 0, keyCorrect.length);
+        } else {
+            keyCorrect = new byte[keyBytes.length];
+            System.arraycopy(keyBytes, 0, keyCorrect, 0, keyCorrect.length);
+        }
+
+        byte[] passphraseBytes = null;
+
+        try {
+            passphraseBytes = passphr.getBytes("UTF-8");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        byte[] conc = new byte[keyCorrect.length + passphraseBytes.length];
+        System.arraycopy(keyCorrect, 0, conc, 0, keyCorrect.length);
+        System.arraycopy(passphraseBytes, 0, conc, keyCorrect.length, passphraseBytes.length);
+
+        MessageDigest md = null;
+        try {
+            md = MessageDigest.getInstance("SHA-1");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        md.update(conc);
+        return new BigInteger(1, md.digest());
+    }
 }
+
+

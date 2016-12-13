@@ -13,6 +13,7 @@ public class Main {
         bob.startNegotiatingGenerators();
         bob.startNegotiatingPandQ();
         bob.startComputingR();
+        bob.sendMessage("1337");
 
     }
 }
