@@ -58,6 +58,7 @@ public class Bob {
             System.out.println("Connection to server accomplished");
         } catch (Exception e) {
             System.out.println("Connection Error");
+            System.exit(1);
         }
     }
 
@@ -82,10 +83,14 @@ public class Bob {
             String ack = in.readLine();
             if (ack.compareTo("ack") == 0) {
                 key = g_x1.modPow(x2, p);
+            }else{
+                System.out.println("Problem with computing the diffie hellman key");
+                System.exit(1);
             }
         } catch (IOException e) {
             System.out.println("Error with retrieving correct response from server. Please try again.");
             e.printStackTrace();
+            System.exit(1);
         }
         return key;
     }
@@ -106,7 +111,7 @@ public class Bob {
             String response = in.readLine();
             if (response.compareTo("ack") != 0) {
                 System.out.println("Something wrong with a_2 and b_2 exchange.");
-                System.exit(0);
+                System.exit(1);
             } else {
                 g_2 = g_2a.modPow(b_2, p);
                 System.out.println("Second generator created.");
@@ -124,7 +129,7 @@ public class Bob {
             response = in.readLine();
             if (response.compareTo("ack") != 0) {
                 System.out.println("Something wrong with a_3 and b_3 exchange.");
-                System.exit(0);
+                System.exit(1);
             } else {
                 g_3 = g_3a.modPow(b_3, p);
                 System.out.println("Third generator created.");
@@ -148,7 +153,7 @@ public class Bob {
             String response = in.readLine();
             if (response.compareTo("ack") != 0) {
                 System.out.println("Problem with agreeing on P_a and P_b");
-                System.exit(0);
+                System.exit(1);
             } else {
                 System.out.println("P_b was ack'ed by the server");
             }
@@ -166,7 +171,7 @@ public class Bob {
             response = in.readLine();
             if (response.compareTo("ack") != 0) {
                 System.out.println("Problem with agreeing on Q_a and Q_b");
-                System.exit(0);
+                System.exit(1);
             } else {
                 System.out.println("Q_b was ack'ed by the server");
             }
@@ -191,7 +196,7 @@ public class Bob {
             String response = in.readLine();
             if (response.compareTo("ack") != 0) {
                 System.out.println("Problem with exchanging R-values");
-                System.exit(0);
+                System.exit(1);
             } else {
                 System.out.println("R_b was ack'ed by the server");
             }
